@@ -1,7 +1,14 @@
-const logging = require('./logging');
+const logging = require('../src/logging');
+
+const {
+    disableErrorLogging,
+    enableErrorLogging,
+} = require('./utils');
 
 describe('Logging', () => {
     const expectedFuncs = ['debug', 'info', 'warn', 'error'];
+
+    beforeEach(enableErrorLogging);
 
     it('should export a all expected log functions', () => {
         expectedFuncs.forEach(funcName => {
@@ -50,6 +57,8 @@ describe('Logging', () => {
         logging.setLoggingFuncs(subs); // we verify this works in separate test
 
         logging.resetLogFuncs();
+
+        disableErrorLogging();
 
         expectedFuncs.forEach(funcName => {
             const logFn = logging[funcName];
