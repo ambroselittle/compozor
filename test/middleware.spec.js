@@ -1,4 +1,4 @@
-const { compose, parallel } = require('../src/processor');
+const { compose, parallel, single } = require('../src/processor');
 const { HttpResponse, enableErrorLogging, disableErrorLogging, mockProcessor } = require('./utils');
 const { getOkContent, getErrorContent } = require('../src/response');
 const { ProcessorError } = require('../src/errors');
@@ -120,4 +120,18 @@ describe('Middleware Usage', () => {
 
     });
 
+    it('should allow simple usage of single processor as middleware', async () => {
+        // this mainly supports keeping a consistent arch for apps using the processor framework
+        // so if they have multiple processes, one or more of which only have one processor, they can use this for simpler composition
+        // see docs for more on this and the idea of migrating to composed
+        const middleware = single('Simple Process', require('path').join(__dirname, './composition/step1.js'));
+
+        const res = new HttpResponse();
+
+        await middleware({}, res);
+
+        const expectedResponseData = getOkContent({ step1: true });
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(res.send).toHaveBeenCalledWith(expectedResponseData);
+    });
 });
