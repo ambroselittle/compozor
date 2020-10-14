@@ -435,7 +435,6 @@ const compose = (processName, options = {}) => {
         if (ex.isInvalidProcessError) {
             sendErrors(res, ex.message, ex.details);
             handled = true;
-            shouldLog = !ex.doNotLog;
         }
 
         if (!handled) {
@@ -444,7 +443,7 @@ const compose = (processName, options = {}) => {
         }
 
         if (shouldLog) {
-            error(`Error associated with '${processName}':`, ex); // we can't assume it was logged
+            error(`Error in process '${processName}':`, ex); // we can't assume it was logged
         }
     }
 

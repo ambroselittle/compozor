@@ -1,8 +1,6 @@
 const {
-    //ProcessorError,
     compose,
     parallel,
-    //single
 } = require('../src/processor');
 
 const {
@@ -10,10 +8,11 @@ const {
     processorNames: n,
     disableErrorLogging,
     enableErrorLogging,
+    HttpResponse,
 } = require('./utils');
 
-
-
+const { logEmitter } = require('../src/logging');
+const { getErrorContent } = require('../src/response');
 
 
 describe('Prerequisites', () => {
@@ -71,5 +70,49 @@ describe('Prerequisites', () => {
         await proc.start({}, true);
 
         expect(doFoo.process).not.toHaveBeenCalled();
+    });
+
+    it('should write invalid config error to response (and log) on send', async () => {
+        // this came from actual usage by other devs not finding it obvious when this a config error happened
+        // making it break every response makes it impossible to overlook (for long! :) )
+
+        const procName = 'Missing Prereqs with Send';
+        disableErrorLogging();
+
+        const processErrMessage = `Process '${procName}' has invalid configuration. See logs for details.`;
+        const logVerifier = jest.fn((msg, exDetails) => {
+            expect(msg.indexOf(procName)).toBeGreaterThan(0);
+            expect(exDetails.indexOf(`InvalidProcessError: ${processErrMessage}`)).toEqual(0);
+            expect(exDetails.indexOf('at start'), 'logs stack trace').toBeGreaterThan(0);
+            expect(exDetails.indexOf('configurationErrors:'), 'logs configurationErrors').toBeGreaterThan(0);
+        });
+        logEmitter.on('error', logVerifier); // pass our own func to be called when error is logged
+
+        const processors = [
+            parallel(
+                p.getBar(),
+                p.getFoo(),
+            ),
+            p.doFoo({
+                prerequisites: [n.getBaz]
+            }),
+        ]
+
+        const expectedResponseContent = getErrorContent(processErrMessage, {
+            configurationErrors: [{
+                processorName: n.doFoo,
+                reason: `Prequisites not found before processor in pipeline: ${n.getBaz}`
+            }]
+        });
+
+        const proc = compose(procName, { processors });
+
+        const res = new HttpResponse();
+
+        await proc.send(res, {});
+
+        expect(res.status).toHaveBeenCalledWith(500);
+        expect(res.send).toHaveBeenCalledWith(expectedResponseContent);
+        expect(logVerifier).toHaveBeenCalledTimes(1);
     });
 })
