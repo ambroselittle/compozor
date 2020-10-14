@@ -84,7 +84,7 @@ describe('Error Logging', () => {
         expect(res.status).toHaveBeenCalledWith(500);
     });
 
-    it('does log once via send when thrown from processor if ex.doNotLog is true', async () => {
+    it('does log once via send when thrown from processor', async () => {
         disableErrorLogging(); // disables our default log to console.error (to keep jest console clean when we expect an error)
 
         const logVerifier = jest.fn();
@@ -101,6 +101,35 @@ describe('Error Logging', () => {
 
         expect(logVerifier).toHaveBeenCalledTimes(1);
         expect(res.status).toHaveBeenCalledWith(500);
+    });
+
+    it('does log once via fireAndForget when thrown from processor', async () => {
+        disableErrorLogging(); // disables our default log to console.error (to keep jest console clean when we expect an error)
+
+        const logVerifier = jest.fn();
+        logEmitter.on('error', logVerifier); // pass our own func to be called when error is logged
+
+        const process = compose('Log Error in fireAndForget');
+        process.register('foo', (data) => { data.foo = 'bar' });
+        process.register('bar', () => {
+            throw Error('Error')
+        });
+
+        await process.fireAndForget({});
+
+        expect(logVerifier).toHaveBeenCalledTimes(1);
+        expect(logVerifier).toHaveBeenCalledWith(
+            expect.stringContaining(`Processor 'bar' for '${process.processName}' process exception:`),
+            expect.stringContaining('Error: Error')
+        );
+
+        await process.fireAndForget({}, true);
+
+        expect(logVerifier).toHaveBeenCalledTimes(2);
+        expect(logVerifier, 'with continueOnError').toHaveBeenLastCalledWith(
+            expect.stringContaining(`Processor 'bar' for '${process.processName}' process exception:`),
+            expect.stringContaining('Error: Error')
+        );
     });
 
 });

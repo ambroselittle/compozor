@@ -1,4 +1,4 @@
-const { compose, parallel } = require('../src/processor');
+const { compose } = require('../src/processor');
 
 
 describe('Run If (Conditional Processor Execution)', () => {
