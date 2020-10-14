@@ -1,7 +1,6 @@
-const { compose, parallel, single } = require('../src/processor');
-const { HttpResponse, enableErrorLogging, disableErrorLogging, mockProcessor } = require('./utils');
-const { getOkContent, getErrorContent } = require('../src/response');
-const { ProcessorError } = require('../src/errors');
+const { compose, single } = require('../src/processor');
+const { HttpResponse } = require('./utils');
+const { getOkContent } = require('../src/response');
 
 describe('Middleware Usage', () => {
 
