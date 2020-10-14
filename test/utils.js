@@ -30,6 +30,13 @@ class HttpResponse {
     }
 }
 
+
+function sleep(ms) {
+    return new Promise((resolve) => {
+        setTimeout(resolve, ms);
+    });
+}
+
 let enableErrorLogs = true;
 const testErrorLogger = (...args) => enableErrorLogs && console.error(...args);
 
@@ -39,6 +46,7 @@ module.exports = {
     mockProcessor,
     HttpResponse,
     testErrorLogger,
+    sleep,
     disableErrorLogging: () => enableErrorLogs = false,
     enableErrorLogging: () => enableErrorLogs = true,
 }

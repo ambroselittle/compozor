@@ -36,7 +36,7 @@ const getModuleName = filePath => path.basename(filePath, path.extname(filePath)
  * @param {string} processName - distinct name for logs/errors
  * @param {object} options -
  *      - {string} processorsPath - use if you want to specify a pipeline of module-based processors. If pipeline is not specified, all modules in directory will be executed in order of files in the directory.
- *      - {Array<string|parallel>} - a list of paths and or calls to parallel, if you want a step in the pipeline to execute multiple processors in parallel
+ *      - {Array<string|parallel>} pipeline - a list of paths and or calls to parallel, if you want a step in the pipeline to execute multiple processors in parallel
  *      - {options} cookieOptions - default cookie options for any cookies set without options. Can be static object of options or a function. If a function, it will be called for each cookie creation (so you can control the default options functionally).
  */
 const compose = (processName, options = {}) => {
@@ -63,6 +63,10 @@ const compose = (processName, options = {}) => {
 
     /** Validates and returns a processor in the expected shape for process to use. */
     const createProcessor = (name, processor, options = {}) => {
+        if (typeof name !== 'string') {
+            throw Error(`Processor 'name' must be a string.`);
+        }
+
         if (typeof processor === 'function') {
             processor = {
                 process: processor,
@@ -230,7 +234,7 @@ const compose = (processName, options = {}) => {
         const getExecPromise = async processor => {
             traceStart(processor.name, START_TIMER);
             if (await processor.runIf(data, context)) {
-                return processor.process(data, context);
+                return processor.process(data, context); // it is important for dev convenience to pass in a ref to our current data/context so processors can short circuit without having to return { data, context } (they can return; and have any of their modifications to data/context be carried forward, as would be expected)
             }
             return Promise.resolve({ data, context });
         }
