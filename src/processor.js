@@ -221,13 +221,13 @@ const compose = (processName, options = {}) => {
 
             ensureCookies(processorName);
 
-            const shouldLogError = (
-                !ex.isEpiError && // epi already logs its own errors
-                !(ex.isProcessorError && ex.responseInfo.statusCode < 500) // we only want to log things classified as internal server (i.e. not validation errors)
-            );
+            ex.doNotLog = ex.doNotLog // allow other arbitrary errors to suppress this logging
+                || ex.isEpiError  // epi already logs its own errors
+                ;
 
-            if (shouldLogError) {
+            if (!ex.doNotLog) {
                 error(`Processor '${processorName}' for '${processName}' process exception:`, ex);
+                ex.doNotLog = true; // signal it has already been logged now
             }
         }
 
@@ -382,7 +382,9 @@ const compose = (processName, options = {}) => {
                 throw new ProcessError(processName, startingContext, errors);
             }
         } catch (ex) {
-            error(ex);
+            if (!ex.isProcessError || !ex.allErrorsLogged()) {
+                error(ex);
+            }
         }
     }
 
@@ -418,25 +420,31 @@ const compose = (processName, options = {}) => {
      */
     const writeErrors = (res, ex) => {
         let handled = false;
+        let shouldLog = true;
         if (ex.isProcessError) {
             // try to get the underlying most sever processor error and surface that to the client.
             const processorError = ex.getMostSevereProcessorError() || {};
             const { text, errors, statusCode } = processorError.responseInfo || {};
             sendErrors(res, text || processorError.message || ex.message, errors, statusCode);
             handled = true;
+            // we do not need an extra log entry at the process level if we have logged all of the "child" ProcessorError instances
+            shouldLog = !ex.allErrorsLogged();
         }
 
 
         if (ex.isInvalidProcessError) {
             sendErrors(res, ex.message, ex.details);
             handled = true;
+            shouldLog = !ex.doNotLog;
         }
 
         if (!handled) {
             sendErrors(res, 'Could not complete request.'); // unexpected
-            if (!ex.isEpiError) {
-                error(`Error associated with '${processName}':`, ex); // we can't assume it was logged
-            }
+            shouldLog = !ex.doNotLog;
+        }
+
+        if (shouldLog) {
+            error(`Error associated with '${processName}':`, ex); // we can't assume it was logged
         }
     }
 

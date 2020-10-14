@@ -34,6 +34,11 @@ class ProcessError extends Error {
         }
         return mostSevere;
     }
+
+    /** Gets if there are no internal ProcessorErrors or all of them have been marked as doNotLog. */
+    allErrorsLogged() {
+        return this.errorsFromProcessors.length === 0 || this.errorsFromProcessors.every(err => err.ex.doNotLog);
+    }
 }
 
 /** This is used to surface invalid configuration issues with relevant data attached on the details property. */
@@ -61,10 +66,17 @@ class ProcessorError extends Error {
      *              statusCode: 400,
      *          })
      */
-    constructor(message, responseInfo = {}) {
+    constructor(message, responseInfo) {
         super(message);
-        this.responseInfo = responseInfo;
         this.isProcessorError = true;
+        this.responseInfo = responseInfo || {};
+        // ensure status code is set and valid
+        this.responseInfo.statusCode = parseInt(this.responseInfo.statusCode, 10);
+        if (isNaN(this.responseInfo.statusCode) || this.responseInfo.statusCode <= 0) {
+            this.responseInfo.statusCode = 500;
+        }
+        // we only want to log things classified as internal server (i.e. not validation errors)
+        this.doNotLog = responseInfo.statusCode < 500;
     }
 }
 
