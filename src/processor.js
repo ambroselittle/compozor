@@ -222,7 +222,7 @@ const compose = (processName, options = {}) => {
             ensureCookies(processorName);
 
             ex.doNotLog = ex.doNotLog // allow other arbitrary errors to suppress this logging
-                || ex.isEpiError  // epi already logs its own errors
+                || ex.isEpiError  // GLG internal thing; kept for backwards compat
                 ;
 
             if (!ex.doNotLog) {
