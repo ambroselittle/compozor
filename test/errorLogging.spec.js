@@ -100,7 +100,6 @@ describe('Error Logging', () => {
         await process.send(res, {});
 
         expect(logVerifier).toHaveBeenCalledTimes(1);
-        expect(logVerifier).toHaveBeenCalledWith({})
         expect(res.status).toHaveBeenCalledWith(500);
     });
 
