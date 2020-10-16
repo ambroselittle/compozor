@@ -61,16 +61,6 @@ function sendErrors(message = 'Unable to Complete Request', responseErrors, stat
     }
 }
 
-/**
- * Adds/binds the sendOk and sendErrors utilities to the given response object for easy use in API functions.
- *
- * @param {HttpResponse} res - response-shaped object that supports chained status(number).send(data) functions.
- */
-const bindResponseUtils = res => {
-    res.sendOk = sendOk.bind(res);
-    res.sendErrors = sendErrors.bind(res);
-}
-
 module.exports = {
     /**
      * Sends status of 200 with the given data/metadata and an ok indicator.
@@ -91,6 +81,4 @@ module.exports = {
     sendErrors: (res, ...args) => sendErrors.apply(res, args),
     getOkContent,
     getErrorContent,
-    bindResponseUtils,
-
 }
