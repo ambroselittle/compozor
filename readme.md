@@ -8,7 +8,7 @@ An API-oriented framework for composing units of work into readable, maintainabl
   - [Values](#values)
     - [Modularization](#modularization)
     - [Composability](#composability)
-    - [Understandability](#understandability)
+    - [Understandability/Readability](#understandabilityreadability)
     - [Testability](#testability)
     - [Reusability](#reusability)
     - [Error Handling](#error-handling)
