@@ -16,6 +16,10 @@
     "url": "https://github.com/ambroselittle/processor/issues"
   },
   "homepage": "https://github.com/ambroselittle/processor#readme",
+  "engines": {
+    "node": "14.14.0",
+    "npm": "6.14.8"
+  },
   "devDependencies": {
     "jest": "26.5.3",
     "jest-expect-message": "1.0.2"
