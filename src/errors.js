@@ -1,3 +1,14 @@
+const isRealObj = require('./isRealObj');
+
+/** Error messaages used in errors. */
+const Errors = {
+    ProcessNameNotString: processName => `processName must be a string. Was: ${typeof processName}; ${String(processName)}`,
+    ProcessErrorMessage: processName => `Error executing process '${processName}'.`,
+    ErrorsFromProcesssorsNotArray: processName => `errorsFromProcessors supplied to process '${processName} must be an array.`,
+    InvalidProcessErrorMessage: processName => `Process '${processName}' has invalid configuration. See logs for details.`,
+    ResponseInfoNotObject: () => 'responseInfo parameter, if defined, must be an object.',
+}
+
 /**
  * Thrown when process encounters an error and cannot continue.
  *
@@ -13,11 +24,17 @@
  *
  * */
 class ProcessError extends Error {
-    constructor(processName, startingContext, errorsFromProcessors) {
-        super(`Error executing process '${processName}'.`);
+    constructor(processName, startingContext, errorsFromProcessors = []) {
+        if (typeof processName !== 'string') {
+            throw new Error(Errors.ProcessNameNotString(processName));
+        }
+        super(Errors.ProcessErrorMessage(processName));
         this.startingContext = startingContext || {};
         // these can be more than one in the case of parallel processors.
-        this.errorsFromProcessors = errorsFromProcessors || [];
+        if (!Array.isArray(errorsFromProcessors)) {
+            throw new Error(Errors.ErrorsFromProcesssorsNotArray(processName));
+        }
+        this.errorsFromProcessors = errorsFromProcessors;
         this.isProcessError = true;
     }
 
@@ -44,7 +61,10 @@ class ProcessError extends Error {
 /** This is used to surface invalid configuration issues with relevant data attached on the details property. */
 class InvalidProcessError extends Error {
     constructor(processName, details) {
-        super(`Process '${processName}' has invalid configuration. See logs for details.`);
+        if (typeof processName !== 'string') {
+            throw new Error(Errors.ProcessNameNotString(processName));
+        }
+        super(Errors.InvalidProcessErrorMessage(processName));
         this.details = details;
         this.isInvalidProcessError = true;
     }
@@ -62,25 +82,30 @@ class ProcessorError extends Error {
      *
      *      Ex:  throw new ProcessorError('Could not do the thing', {
      *              text: 'Thing was bad.',
-     *              errors: { code: 300, message: 'Whatevs' },
+     *              errors: { validationCode: 300, message: 'Whatevs' },
      *              statusCode: 400,
      *          })
      */
-    constructor(message, responseInfo) {
+    constructor(message, responseInfo = {}) {
         super(message);
         this.isProcessorError = true;
-        this.responseInfo = responseInfo || {};
+        if (!isRealObj(responseInfo)) {
+            throw Error(Errors.ResponseInfoNotObject())
+        }
+        this.responseInfo = responseInfo;
         // ensure status code is set and valid
         this.responseInfo.statusCode = parseInt(this.responseInfo.statusCode, 10);
+        // default statusCode to 500
         if (isNaN(this.responseInfo.statusCode) || this.responseInfo.statusCode <= 0) {
             this.responseInfo.statusCode = 500;
         }
         // we only want to log things classified as internal server (i.e. not validation errors)
-        this.doNotLog = responseInfo.statusCode < 500;
+        this.doNotLog = this.responseInfo.statusCode < 500;
     }
 }
 
 module.exports = {
+    Errors,
     ProcessError,
     ProcessorError,
     InvalidProcessError,
