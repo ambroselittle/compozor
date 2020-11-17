@@ -2,10 +2,31 @@ const { error, warn, debug } = require('./logging');
 const fs = require('fs');
 const path = require('path');
 const { sendOk, sendErrors } = require('./response');
+const isRealObj = require('./isRealObj');
 
 const { traceStart, traceEnd, traceWrite } = require('./timers');
 
 const { ProcessError, ProcessorError, InvalidProcessError } = require('./errors');
+
+const Errors = {
+    ProcessorNameNotString: (name) => `Processor 'name' must be a string. Was: type ${typeof name}: ${name}`,
+    ProcessorNotObject: (processor) => `Processors must be a function or an object with a 'process' function. Was: type ${typeof processor}: ${processor}`,
+    ProcessNotFunction: (processor) => `Processor.process must be a function.  Was: type ${typeof processor.process}`,
+    RunIfNotFunction: (processor) => `Processor runIf must be a function.   Was: type ${typeof processor.runIf}`,
+    PrereqNotString: (processor) => `Processor prerequisites must be an array of string names of procesors that are expected to run before it. Prereqs: ${JSON.stringify(processor.prerequisites)}`,
+    CookiesChanged: (processorName) => `Processor '${processorName}' invalidly changed data.cookies. Resetting to normal object.`,
+    PrereqFailedToRun: (processor, prereq) => `Processor '${processor.name}' requires '${prereq}' to run first, but it failed with an error. Skipping '${processor.name}'...`,
+    NonProcessError: (processName) => `Error in process '${processName}'.`,
+    InvalidPipeline: () => 'Processor pipeline not valid. Must be an array.',
+    ImportException: (entry, processName) => `Processor '${entry}' for '${processName}' import exception.`,
+    ModuleImportFailure: () => 'Module import failure.',
+    ProcessorCreationFailure: (entry, processName) => `Processor '${entry}' for '${processName}' creation exception.`,
+    UnexpectedResponse: () => 'Could not complete request.',
+    MissingPrereqs: (missingPrereqs) => `Prequisites not found before processor in pipeline: ${missingPrereqs.join(',')}`,
+    InvalidProcessorsPath: () => `Given processorsPath does not exist. Was: ${processorsPath}`,
+    InvalidRequestObject: () => 'req parameter is required and should be a node/Express request object.',
+    InvalidResponseObject: () => 'res parameter is required and should have a status and send function defined.',
+}
 
 const mergeOptions = (options, defaults) => {
     if (!defaults) { return options; }
@@ -64,7 +85,7 @@ const compose = (processName, options = {}) => {
     /** Validates and returns a processor in the expected shape for process to use. */
     const createProcessor = (name, processor, options = {}) => {
         if (typeof name !== 'string') {
-            throw Error(`Processor 'name' must be a string.`);
+            throw Error(Errors.ProcessorNameNotString(name));
         }
 
         if (typeof processor === 'function') {
@@ -76,17 +97,17 @@ const compose = (processName, options = {}) => {
 
         processor.name = String(name);
 
-        if (typeof processor !== 'object') {
-            throw Error(`Processors must be a function or an object with a 'process' function.`);
+        if (!isRealObj(processor)) {
+            throw Error(Errors.ProcessorNotObject(processor));
         }
 
         if (typeof processor.process !== 'function') {
-            throw Error(`Processor.process must be a function.`);
+            throw Error(Errors.ProcessNotFunction(processor));
         }
 
         if (processor.runIf !== undefined) {
             if (typeof processor.runIf !== 'function') {
-                throw Error('Processor runIf must be a function.');
+                throw Error(Errors.RunIfNotFunction(processor));
             }
         } else {
             processor.runIf = () => true; // if runIf not specified, we will always return true and run
@@ -94,7 +115,7 @@ const compose = (processName, options = {}) => {
 
         if (processor.prerequisites) {
             if (!(Array.isArray(processor.prerequisites) && processor.prerequisites.every(prereq => typeof prereq === 'string'))) {
-                throw Error('Processor prerequisites must be an array of string names of procesors that are expected to run before it.')
+                throw Error(Errors.PrereqNotString(processor))
             }
         } else {
             processor.prerequisites = [];
@@ -176,7 +197,7 @@ const compose = (processName, options = {}) => {
 
         const ensureCookies = (processorName) => {
             if (!(typeof data.cookies === 'object' && data.cookies !== null && !Array.isArray(data.cookies) && !(data.cookies instanceof Date))) {
-                error(`Processor '${processorName}' invalidly changed data.cookies. Resetting to normal object.`);
+                error(Errors.CookiesChanged(processorName));
                 data.cookies = {};
             }
         }
@@ -224,11 +245,6 @@ const compose = (processName, options = {}) => {
             ex.doNotLog = ex.doNotLog // allow other arbitrary errors to suppress this logging
                 || ex.isEpiError  // GLG internal thing; kept for backwards compat
                 ;
-
-            if (!ex.doNotLog) {
-                error(`Processor '${processorName}' for '${processName}' process exception:`, ex);
-                ex.doNotLog = true; // signal it has already been logged now
-            }
         }
 
         const getExecPromise = async processor => {
@@ -261,7 +277,7 @@ const compose = (processName, options = {}) => {
                     processor.prerequisites.forEach(prereq => {
                         const procRun = processorsRun.find(p => p.name === prereq);
                         if (procRun && !procRun.ok) {
-                            error(`Processor '${processor.name}' requires '${prereq}' to run first, but it failed with an error. Skipping '${processor.name}'...`);
+                            error(Errors.PrereqFailedToRun(processor, prereq));
                             toExec = toExec.filter(p => p !== processor);
                         }
                     });
@@ -285,8 +301,8 @@ const compose = (processName, options = {}) => {
                 if (execInfo.promises.length === 0) { continue; }
                 traceStart(execInfo.name, START_TIMER);
 
+                debug(`Executing '${execInfo.name}' processor...`);
                 try {
-                    debug(`Executing '${execInfo.name}' processor...`);
                     await Promise.all(execInfo.promises);
                 } catch (ex) {
                     handleProcessorError(execInfo.name, ex);
@@ -303,7 +319,9 @@ const compose = (processName, options = {}) => {
             checkErrors(); // if last processor errors, we need to check for that here
         } catch (ex) {
             if (!ex.isProcessError) {
-                error(`Unexpected error in process '${processName}' start.`, ex);
+                ex.startingContext = startingContext; // ensure startingContext is available to handlers and logs
+                logError(ex);
+                ex.doNotLog = true; // signal our built-in logging that we logged already
             }
             throw ex;
         }
@@ -383,7 +401,7 @@ const compose = (processName, options = {}) => {
             }
         } catch (ex) {
             if (!ex.isProcessError || !ex.allErrorsLogged()) {
-                error(ex);
+                logError(ex);
             }
         }
     }
@@ -391,10 +409,10 @@ const compose = (processName, options = {}) => {
     /** Gets a node/Express request/response handler function for this process. */
     const getHttpHandler = () => async (req, res, next) => {
         if (!req) {
-            throw Error('req parameter is required and should be a node/Express request object.');
+            throw Error(Errors.InvalidRequestObject());
         }
         if (!(res && typeof res.status === 'function' && typeof res.send === 'function')) {
-            throw Error('res parameter is required and should have a status and send function defined.');
+            throw Error(Errors.InvalidResponseObject());
         }
         const context = {
             params: req.parameters || { // supports already coalesced values via another middleware
@@ -409,6 +427,16 @@ const compose = (processName, options = {}) => {
 
         if (typeof next === 'function') {
             next();
+        }
+    }
+
+    /** Send error to our error logger. */
+    const logError = ex => {
+        if (ex.isProcessError) {
+            error(ex);
+        } else {
+            // prefix with process name
+            error(Errors.NonProcessError(processName), ex);
         }
     }
 
@@ -438,12 +466,12 @@ const compose = (processName, options = {}) => {
         }
 
         if (!handled) {
-            sendErrors(res, 'Could not complete request.'); // unexpected
+            sendErrors(res, Errors.UnexpectedResponse()); // unexpected
             shouldLog = !ex.doNotLog;
         }
 
         if (shouldLog) {
-            error(`Error in process '${processName}':`, ex); // we can't assume it was logged
+            logError(ex);
         }
     }
 
@@ -451,14 +479,14 @@ const compose = (processName, options = {}) => {
         if (processor && Array.isArray(processor.prerequisites)) {
             const missingPrereqs = processor.prerequisites.filter(prereq => !loaded.some(p => p.name === prereq));
             if (missingPrereqs.length > 0) {
-                addInvalidProcessor(processor.name, `Prequisites not found before processor in pipeline: ${missingPrereqs.join(',')}`);
+                addInvalidProcessor(processor.name, Errors.MissingPrereqs(missingPrereqs));
             }
         }
     }
 
     const validatePipeline = (pipeline, allLoaded = [], loadedThisLevel = allLoaded) => {
         if (!Array.isArray(pipeline)) {
-            const msg = 'Processor pipeline not valid. Must be an array.';
+            const msg = Errors.InvalidPipeline();
             invalidConfigs.push(msg);
             error(msg, pipeline);
             return;
@@ -492,8 +520,8 @@ const compose = (processName, options = {}) => {
                         traceEnd('Import ' + entry, processName);
                     } catch (ex) {
                         console.error(ex)
-                        error(`Processor '${entry}' for '${processName}' import exception:`, ex);
-                        addInvalidProcessor(entry, 'Module import failure.');
+                        error(Errors.ImportException(entry, processName), ex);
+                        addInvalidProcessor(entry, Errors.ModuleImportFailure());
                         return null;
                     }
 
@@ -501,7 +529,7 @@ const compose = (processName, options = {}) => {
                     try {
                         processor = createProcessor(entry, module);
                     } catch (ex) {
-                        error(`Processor '${entry}' for '${processName}' creation exception:`, ex);
+                        error(Errors.ProcessorCreationFailure(), ex);
                         addInvalidProcessor(entry, ex.message);
                     }
 
@@ -512,7 +540,7 @@ const compose = (processName, options = {}) => {
 
         if (!fs.existsSync(String(processorsPath))) {
             invalidConfigs.push('Invalid processors path.');
-            error('Given processorsPath does not exist. Was:', processorsPath);
+            error(Errors.InvalidProcessorsPath(processorsPath));
         } else {
             debug(`Registering processors in: '${processorsPath}'`)
             /** if they give us a list of processors to use, we use that; otherwise, we get all in the directory, and we run those all in parallel if so. */
@@ -560,6 +588,8 @@ const single = (name, pathToProcessor) => {
 
 
 module.exports = {
+    Errors,
+
     compose,
     single,
     parallel,
