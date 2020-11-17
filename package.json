@@ -1,22 +1,22 @@
 {
-  "name": "processor",
-  "version": "0.5.1",
+  "name": "compozor",
+  "version": "0.5.3",
   "description": "An API-oriented framework for composing units of work into readable, maintainable, and testable processes.",
   "main": "./dist/index.js",
   "scripts": {
     "test": "jest --config=jest.config.js --watch",
-    "publish": "git push --tags && npm publish"
+    "pub": "git push --tags && npm publish"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ambroselittle/processor.git"
+    "url": "git+https://github.com/ambroselittle/compozor.git"
   },
   "author": "J. Ambrose Little",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/ambroselittle/processor/issues"
+    "url": "https://github.com/ambroselittle/compozor/issues"
   },
-  "homepage": "https://github.com/ambroselittle/processor#readme",
+  "homepage": "https://github.com/ambroselittle/compozor#readme",
   "engines": {
     "node": "14.14.0",
     "npm": "6.14.8"
