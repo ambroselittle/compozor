@@ -187,12 +187,12 @@ const compose = (processName, options = {}) => {
             throw new InvalidProcessError(processName, { configurationErrors: invalidConfigs });
         }
 
-        let context = {
+        const context = {
             ...startingContext,
             processName,
         }
         context.errors = [];
-        let data = { cookies: {}, }; // start with empty cookies so processors can just set values on it
+        const data = { cookies: {}, }; // start with empty cookies so processors can just set values on it
         const processorsRun = [];
 
         const ensureCookies = (processorName) => {
@@ -211,14 +211,13 @@ const compose = (processName, options = {}) => {
             })
 
             if (result) {
-                context = {
-                    ...context,
-                    ...result.context,
-                }
-                data = {
-                    ...data,
-                    ...result.data
-                };
+                // copy over root modifications
+                result.context && Object.keys(result.context).forEach(propName => {
+                    context[propName] = result.context[propName];
+                })
+                result.data && Object.keys(result.data).forEach(propName => {
+                    data[propName] = result.data[propName];
+                })
             }
 
             ensureCookies(processorInfo.name);
