@@ -163,7 +163,7 @@ describe('Error Logging', () => {
 
         const logVerifier = jest.fn();
         logEmitter.on('error', logVerifier); // pass our own func to be called when error is logged
-        logEmitter.on('debug', (msg) => {
+        logEmitter.on('verbose', (msg) => {
             if (msg === `Executing 'foo' processor...`) { // trigger unexpected error outside of processor code but inside our handler
                 throw new Error('Test');
             }

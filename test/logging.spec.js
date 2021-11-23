@@ -6,7 +6,7 @@ const {
 } = require('./utils');
 
 describe('Logging', () => {
-    const expectedFuncs = ['debug', 'info', 'warn', 'error'];
+    const expectedFuncs = logging.SUPPORTED_LOG_FUNCS;
 
     beforeEach(enableErrorLogging);
 
@@ -18,7 +18,9 @@ describe('Logging', () => {
     });
 
     it('should allow overriding functions', () => {
+        disableErrorLogging();
         const subs = {
+            verbose: jest.fn(),
             debug: jest.fn(),
             info: jest.fn(),
             warn: jest.fn(),
@@ -33,40 +35,6 @@ describe('Logging', () => {
             logFn(funcName);
             expect(subs[funcName]).toBeCalledWith(funcName);
         })
-    });
-
-    it('should allow reset to console funcs after customizing', () => {
-        const subs = {
-            debug: jest.fn(),
-            info: jest.fn(),
-            warn: jest.fn(),
-            error: jest.fn(),
-        };
-
-        expectedFuncs.forEach(fnName => {
-
-        })
-
-        const listeners = expectedFuncs.reduce((listeners, fnName) => {
-            const fn = jest.fn();
-            logging.logEmitter.on(fnName, fn);
-            listeners[fnName] = fn;
-            return listeners;
-        }, {});
-
-        logging.setLoggingFuncs(subs); // we verify this works in separate test
-
-        logging.resetLogFuncs();
-
-        disableErrorLogging();
-
-        expectedFuncs.forEach(funcName => {
-            const logFn = logging[funcName];
-            expect(typeof logFn, funcName).toEqual('function');
-            logFn(funcName);
-            expect(listeners[funcName]).toBeCalledWith(funcName);
-            logging.logEmitter.off(funcName, logFn);
-        });
     });
 
     it('should format object parameters by default', () => {

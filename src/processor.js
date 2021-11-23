@@ -1,4 +1,4 @@
-const { error, warn, debug } = require('./logging');
+const { error, warn, verbose } = require('./logging');
 const fs = require('fs');
 const path = require('path');
 const { sendOk, sendErrors } = require('./response');
@@ -65,7 +65,7 @@ const compose = (processName, options = {}) => {
     const START_TIMER = 'Start -> ' + processName;
     const __self = this;
 
-    debug(`Compose Process: ${processName}; options:`, options);
+    verbose(`Compose Process: ${processName}; options:`, options);
     traceStart(COMPOSE_TIMER, processName, true);
     processName = String(processName || 'Unknown');
     /** we track these to make it more obvious when a process has invalid config */
@@ -142,7 +142,7 @@ const compose = (processName, options = {}) => {
         }
 
         if (!processors.some(p => p.name === processor.name)) {
-            debug(`Adding processor '${processor.name}' to process '${processName}'.`);
+            verbose(`Adding processor '${processor.name}' to process '${processName}'.`);
             processors.push(processor);
         } else {
             warn(`Processor with name '${processor.name}' already registered. Skipping.`, processor);
@@ -300,7 +300,7 @@ const compose = (processName, options = {}) => {
                 if (execInfo.promises.length === 0) { continue; }
                 traceStart(execInfo.name, START_TIMER);
 
-                debug(`Executing '${execInfo.name}' processor...`);
+                verbose(`Executing '${execInfo.name}' processor...`);
                 try {
                     await Promise.all(execInfo.promises);
                 } catch (ex) {
@@ -541,7 +541,7 @@ const compose = (processName, options = {}) => {
             invalidConfigs.push('Invalid processors path.');
             error(Errors.InvalidProcessorsPath(processorsPath));
         } else {
-            debug(`Registering processors in: '${processorsPath}'`)
+            verbose(`Registering processors in: '${processorsPath}'`)
             /** if they give us a list of processors to use, we use that; otherwise, we get all in the directory, and we run those all in parallel if so. */
             const processorEntries = pipeline ? pipeline : parallel(fs.readdirSync(processorsPath).map(file => getModuleName(file)));
             processors = importProcessors(processorEntries);
