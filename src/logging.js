@@ -68,7 +68,7 @@ const drainQ = (fName, logFunc) => {
 }
 
 // Gets a ref to the console log func but also will auto util.inspect any object type args when logging.
-const getDefaultLogFunc = (funcName) => (...args) => logEmitter.emit(funcName, ...args.map(arg => isRealObj(arg) ? fmtObj(arg) : arg))
+const getDefaultLogFunc = (funcName) => (...args) => logEmitter.emit(funcName, ...args)
 
 /** Logs the given values on the verbose event of the logEmitter. */
 const verbose = getDefaultLogFunc('verbose');
