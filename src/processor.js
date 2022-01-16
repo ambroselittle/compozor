@@ -23,7 +23,7 @@ const Errors = {
     ProcessorCreationFailure: (entry, processName) => `Processor '${entry}' for '${processName}' creation exception.`,
     UnexpectedResponse: () => 'Could not complete request.',
     MissingPrereqs: (missingPrereqs) => `Prequisites not found before processor in pipeline: ${missingPrereqs.join(',')}`,
-    InvalidProcessorsPath: () => `Given processorsPath does not exist. Was: ${processorsPath}`,
+    InvalidProcessorsPath: (processorsPath) => `Given processorsPath does not exist. Was: ${processorsPath}`,
     InvalidRequestObject: () => 'req parameter is required and should be a node/Express request object.',
     InvalidResponseObject: () => 'res parameter is required and should have a status and send function defined.',
 }
