@@ -45,7 +45,7 @@ describe('Logging', () => {
         const testObj = { foo: 'bar' };
         const testString = 'my string';
 
-        const expected = [testNum, require('util').inspect(testObj, false, 10), testString]; // see above note on jest mucking with console func params
+        const expected = [testNum, testObj, testString];
 
         logging.debug(testNum, testObj, testString);
 
