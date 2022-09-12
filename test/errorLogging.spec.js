@@ -10,13 +10,13 @@ describe('Error Logging', () => {
     const getStartingContext = () => clone(startingContext);
 
     const expectProcessError = (logFunc) => {
-        expect(logFunc).toHaveBeenLastCalledWith(expect.stringContaining('ProcessError'));
+        expect(logFunc).toHaveBeenLastCalledWith(expect.any(ProcessError));
     }
 
     const expectStartingContext = (logFunc, beforeArgs = [], afterArgs = []) => {
         const allArgs = [
             ...beforeArgs,
-            expect.stringMatching(/startingContext:[\s\S]+myId:.+382828/),
+            expect.objectContaining({ startingContext }),
             ...afterArgs,
         ]
         expect(logFunc).toHaveBeenCalledWith(...allArgs);

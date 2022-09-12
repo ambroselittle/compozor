@@ -80,11 +80,14 @@ describe('Prerequisites', () => {
         disableErrorLogging();
 
         const processErrMessage = `Process '${procName}' has invalid configuration. See logs for details.`;
+        const { InvalidProcessError } = require('../src/errors')
         const logVerifier = jest.fn((msg, exDetails) => {
             expect(msg.indexOf(procName)).toBeGreaterThan(0);
-            expect(exDetails.indexOf(`InvalidProcessError: ${processErrMessage}`)).toEqual(0);
-            expect(exDetails.indexOf('at start'), 'logs stack trace').toBeGreaterThan(0);
-            expect(exDetails.indexOf('configurationErrors:'), 'logs configurationErrors').toBeGreaterThan(0);
+            expect(exDetails).toBeInstanceOf(InvalidProcessError);
+            // verify config errors are logged:
+            expect(exDetails).toEqual(expect.objectContaining({
+                details: { configurationErrors: expect.any(Array)},
+            }));
         });
         logEmitter.on('error', logVerifier); // pass our own func to be called when error is logged
 
